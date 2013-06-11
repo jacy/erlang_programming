@@ -1,6 +1,9 @@
 -module(ch5_io_handler).
 -export([init/1, terminate/1, handle_event/2]).
 
+%%%=====================================================
+%%% Callbacks
+%%%=====================================================
 init(Count) -> Count.
 
 terminate(Count) -> {count, Count}.
@@ -8,12 +11,13 @@ terminate(Count) -> {count, Count}.
 handle_event({raise_alarm, Id, Alarm}, Count) -> 
 	print(alarm, Id, Alarm, Count),
 	Count+1;
-
 handle_event({clear_alarm, Id, Alarm}, Count) -> 
 	print(clear, Id, Alarm, Count),
 	Count+1;
-
 handle_event(_Event, Count) -> Count.
+%%%=====================================================
+%%% Private Functions
+%%%=====================================================
 
 print(Type, Id, Alarm, Count) -> 
 	Date = fmt(date()), 
