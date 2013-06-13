@@ -1,16 +1,11 @@
 -module(ch12_usr).
--export([start_link/0, start_link/1, stop/0]). 
--export([init/1, terminate/2, handle_call/3, handle_cast/2]). 
--export([add_usr/3, delete_usr/1, set_service/3, set_status/2,delete_disabled/0, lookup_id/1]). 
--export([lookup_msisdn/1, service_flag/2]). 
+-compile(export_all). 
 -behavior(gen_server).
--include("usr.hrl").
 
 %% ====================================================================
 %% Start server
 %% ====================================================================
-start_link() -> start_link("usrDb").
-start_link(FileName) ->
+start_link() ->
 	%% gen_server:start_link(ServerName, CallBackModule, Arguments, Options)
 	%% gen_server:start_link(CallBackModule, Arguments, Options)
 	%% 1. ServerName Is a tuple of the format{local, Name} or {global, Name}, denoting a local or global Name for the process if it is to be registered. 
@@ -18,11 +13,10 @@ start_link(FileName) ->
 	%% 2. Arguments Is a valid Erlang term that is passed to the init/1 callback function. 
 	%% 3. Options Is a list that allows you to set the memory management flags fullsweep_after and heapsize, as well as tracing and debugging flags.
 	%% 4. CallbackModule Is the name of the module in which the specific callback functions are placed.
-	gen_server:start_link({local, ?MODULE}, ?MODULE, FileName, []).
+	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
-init(FileName) -> 
-	usr_db:create_tables(FileName),
-	usr_db:restore_backup(),
+%% Should return one of the values {ok, LoopData} or {stop, Reason}. If init/1 returns {stop, Reason} the terminate/2 “cleanup” function will not be called.
+init([]) -> 
 	{ok, null}.
 
 %% ====================================================================
@@ -33,14 +27,14 @@ init(FileName) ->
 %% gen_server:call(Name, Message)
 %% Name Is either the local registered name of the server or the tuple{global, Name}. It could also be the process identifier of the server.
 %% --------------------------------------------------------------------
-%% Asynchronous Messages ->  {noreply, NewLoopData｝
+%% Asynchronous Messages ->  {noreply, NewLoopDataï½
 %% --------------------------------------------------------------------
-%% For asynchronous message requests, you use cast/2. If you’re using a pid, the call will immediately return the atom ‘ok’, regardless of whether the gen_server 
-%% to which you are sending the message is alive.These semantics are no different from the standard “Name ! Message” construct,
+%% For asynchronous message requests, you use cast/2. If youâre using a pid, the call will immediately return the atom âokâ, regardless of whether the gen_server 
+%% to which you are sending the message is alive.These semantics are no different from the standard âName ! Messageâ construct,
 %% where if the registered process Name does not exist, the calling process terminates.
 %% Upon receiving the message, gen_server will call the callback function handle_cast(Message, LoopData) in the callback module. 
-%% 1） Message is the argument passed to the cast/2 function, 
-%% 2） LoopData is the argument originally returned by the init/1 callback function. 
+%% 1ï¼ Message is the argument passed to the cast/2 function, 
+%% 2ï¼ LoopData is the argument originally returned by the init/1 callback function. 
 %% The handle_cast/1 callback function handles the specifics of the message, and upon finishing, it has to return the tuple {noreply, NewLoopData}. 
 %% In future calls to the server, the NewLoopData value most recently returned will be passed as an argument when a message is sent to the server.
 %% --------------------------------------------------------------------
@@ -66,49 +60,11 @@ init(FileName) ->
 %% --------------------------------------------------------------------
 %% Handle Other Messages
 %% --------------------------------------------------------------------
-%% The callback function handle_info/2* is called whenever the process receives a message it doesn’t recognize. 
-%% These could include “node down” messages from nodes you are monitoring, exit signals from processes you are linked to, 
+%% The callback function handle_info/2* is called whenever the process receives a message it doesnât recognize. 
+%% These could include ânode downâ messages from nodes you are monitoring, exit signals from processes you are linked to, 
 %% or simply messages sent using the 'Pid ! Msg' construct.
-add_usr(PhoneNum, CustId, Plan) when Plan==prepay; Plan==postpay -> 
-	gen_server:call(?MODULE, {add_usr, PhoneNum, CustId, Plan}).
-
-delete_usr(CustId) -> 
-	gen_server:call(?MODULE, {delete_usr, CustId}).
-
-set_service(CustId, Service, Flag) when Flag==true; Flag==false -> 
-	gen_server:call(?MODULE, {set_service, CustId, Service, Flag}).
-
-set_status(CustId, Status) when Status==enabled; Status==disabled-> 
-	gen_server:call(?MODULE, {set_status, CustId, Status}).
-
-delete_disabled() -> gen_server:call(?MODULE, delete_disabled).
 
 handle_cast(stop, LoopData) -> {stop, normal, LoopData}.
-
-handle_call({add_usr, PhoneNo, CustId, Plan}, _From, LoopData) -> 
-	Reply = usr_db:add_usr(#usr{msisdn=PhoneNo,id=CustId, plan=Plan}),
-	{reply, Reply, LoopData};
-handle_call({delete_usr, CustId}, _From, LoopData) ->
-	Reply = usr_db:delete_usr(CustId),
-	{reply, Reply, LoopData};
-handle_call({set_service, CustId, Service, Flag}, _From, LoopData) -> 
-	Reply = case usr_db:lookup_id(CustId) of
-		{ok, Usr} ->
-			Services = lists:delete(Service, Usr#usr.services), 
-			NewServices = case Flag of
-				true -> [Service|Services]; 
-				false -> Services
-			end,
-			usr_db:update_usr(Usr#usr{services=NewServices}); 
-		{error, instance} ->
-			{error, instance} end,
-	{reply, Reply, LoopData};
-handle_call({set_status, CustId, Status}, _From, LoopData) -> 
-	Reply = case usr_db:lookup_id(CustId) of
-		{ok, Usr} -> usr_db:update_usr(Usr#usr{status=Status});
-		{error, instance} ->{error, instance} end,
-	{reply, Reply, LoopData};
-handle_call(delete_disabled, _From, LoopData) -> {reply, usr_db:delete_disabled(), LoopData}.
 
 %% ====================================================================
 %% Stopping the Server
@@ -120,22 +76,7 @@ handle_call(delete_disabled, _From, LoopData) -> {reply, usr_db:delete_disabled(
 stop() -> gen_server:cast(?MODULE, stop).
 
 terminate(Reason, LoopData) ->
-	io:format("Terminate with Reason:~p, and current State:~p ~n", [Reason,LoopData]),
-	usr_db:close_tables().
-
-%% ====================================================================
-%% Service API
-%% ====================================================================
-lookup_id(CustId) -> usr_db:lookup_id(CustId).
-
-lookup_msisdn(PhoneNo) -> usr_db:lookup_msisdn(PhoneNo).
-
-service_flag(PhoneNo, Service) ->
-	case usr_db:lookup_msisdn(PhoneNo) of
-		{ok,#usr{services=Services, status=enabled}} -> lists:member(Service, Services);
-		{ok, #usr{status=disabled}} -> {error, disabled};
-		{error, Reason} ->{error, Reason} 
-	end.
+	io:format("Terminate with Reason:~p, and current State:~p ~n", [Reason,LoopData]).
 
 
 
