@@ -7,6 +7,13 @@
 
 start() -> register(?MODULE, spawn(?MODULE, init, [])).
 
+stop() -> ?MODULE ! stop.
+
+
+wait() -> ?MODULE ! {wait, self()}, receive ok -> ok end.
+
+signal() -> ?MODULE ! {signal, self()}, ok.
+
 init() -> free().
 
 free() ->
@@ -15,6 +22,7 @@ free() ->
 			Pid ! ok,
 			busy(Pid);
 		stop ->
+			myio:p("~p is stopping !",self()),
 			terminate()
 	end.
 
@@ -28,13 +36,8 @@ busy(Pid) ->
 terminate() ->
 	receive
 		{wait,Pid} ->
-			exit(Pid,kill),
+			exit(Pid, kill),
 			terminate()
 	after
 		0 -> ok
 	end.
-%% ====================================================================
-%% Internal functions
-%% ====================================================================
-
-
