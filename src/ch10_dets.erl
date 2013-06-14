@@ -1,25 +1,16 @@
 %% @author jacy
-%% @doc @todo Add description to ch5_my_db.
+%% @doc @todo Add description to ch10_dts.
 
 
--module(ch5_my_db).
-
-%% ====================================================================
-%% API functions
-%% ====================================================================
--export([]).
--record(users,{name,password}).
-
-start() ->
-	Pid = spawn_link(?MODULE, loop, []),
-	Pid.
-
-loop(Database) ->
-	receive
-		{From, write, Key, Element} -> 
+-module(ch10_dets).
+-compile(export_all).
 
 %% ====================================================================
-%% Internal functions
+%% Disk Erlang Term Storage (Dets)
 %% ====================================================================
 
 
+
+%% ====================================================================
+%% Creating Tables
+%% ====================================================================
