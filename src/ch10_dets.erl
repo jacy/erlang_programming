@@ -1,5 +1,6 @@
 -module(ch10_dets).
 -compile(export_all).
+-include_lib("stdlib/include/ms_transform.hrl").
 
 %% ====================================================================
 %% Disk Erlang Term Storage (Dets)
@@ -31,19 +32,34 @@
 %% 		Will enhance performance if you need to populate the table with lots of elements. It stores the elements in RAM and spools them to file either 
 %% 		when you call dets:sync(Name) or when you close the table. The flag is set to false by default.
 
-
-
-
-%% ====================================================================
-%% Creating Tables
-%% ====================================================================
-
 %% ====================================================================
 %% Close Tables
 %% ====================================================================
 %% Dets tables are closed when the owning process terminates or calls the dets:close(Name) call. If several processes have opened the same table, 
 %% the table will remain open until all of the processes have either terminated or explicitly closed the table. Not closing a table prior to terminating 
 %% the Erlang runtime system will result in it being repaired the next time it is opened. This can be a time-consuming task depending on the size of the table.
+
+%% ====================================================================
+%% Demo
+%% ====================================================================
+demo() ->
+	FileName = "Dets",
+	dets:open_file(food, [{type,bag},{file, FileName}]),
+	
+	dets:insert(food, {italy,spahetti}),
+	dets:insert(food, {sweden, meatballs}),
+	dets:insert(food, {italy,pizza}),
+	
+	NotItalian = ets:fun2ms(fun({Loc, Food}) when Loc /= italy -> Food end),
+	myio:p(dets:select(food, NotItalian)),
+	dets:close(food),
+
+	{ok, Ref} = dets:open_file(FileName),
+	dets:lookup(Ref, italy), % note lookup by Ref
+	dets:info(Ref).
+
+
+	
 
 
 
