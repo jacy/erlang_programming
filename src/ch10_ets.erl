@@ -1,9 +1,6 @@
-%% @author jacy
-%% @doc @todo Add description to ch10_ets.
-
-
 -module(ch10_ets).
 -compile(export_all).
+-include_lib("stdlib/include/ms_transform.hrl").
 %% ====================================================================
 %% Erlang Term Storage (ETS)
 %% ETS tables store tuples, with access to the elements given through a key field in the tuple.
@@ -79,8 +76,68 @@ match_demo() ->
 %% You need to use match operations with great care, as they can change the real-time behavior of a system. This is because all match operations
 %% are implemented as BIFs, and BIFs are executed atomically; a match operation on a large table can therefore stop other processes from executing
 %% until the operation has traversed the whole table.To avoid this problem, it is best to work by table traversal using first and next, as shown earlier.
+%% ====================================================================
+%% Select Table Elements
+%% ====================================================================
+%% match specification is a list of 3-tuples, each corresponding roughly to a function clause.
+%% let's took ets:select(countries, [{{'$1','$2','$3'},[{'/=','$3',cook}],[['$2','$1']]}]) for example, here are three parts:
+%% 1. {'$1','$2','$3'} -> This is a pattern, the same as that used earlier in the ets:match function.
+%% 2. [{'/=','$3',cook}] -> This is a list of guard expressions, written in prefix form. The single guard here checks the condition that $3 /= cook. 
+%%	  The match is successful only if each guard evaluates to true.
+%% 3. [['$2','$1']] ->This is the return expression.
+select_demo() ->
+	TabId = init(),
+	add(TabId, {jacy, "Spinach", 16}),
+	add(TabId, {lina, "Cucumber", 18}),
+	add(TabId, {lilei, "Celery", 16}),
 	
+	myio:p(ets:select(TabId,[
+							 {
+							 	{'$1', '$20', '$300'}, % Name the first,second,third element so that can be reference in the following match
+							 	[{'/=', '$300', 16}], % Guards that third element /= 16
+							 	[['$20','$1']]  %Return second and first element
+							 }
+							])).
 	
+%% ====================================================================
+%% fun2ms
+%% ====================================================================
+%% As the syntax of ets:select/2 is cumbersome, support in Erlang for describing match specifications with closures has been implemented.
+%% The function ets:fun2ms/1 takes a fun as an argument, describing the comparison together with the return values we want the select to return.
+%% And fortunately for us, fun2ms returns a match specification we can use as an argument in our select call, relieving us of the need to understand or write match specifications:
+fun2ms_demo() ->
+	TabId = init(),
+	add(TabId, {jacy, "Spinach", 16}),
+	add(TabId, {lina, "Cucumber", 18}),
+	add(TabId, {lilei, "Celery", 16}),
+	
+%% 	Note that the fun has to be a literal function, and it cannot be passed to fun2ms as a variable. By literal function, we mean a function that is typed in the ets:fun2ms/1 
+%%  call and not one that is bound to a variable. The fun itself needs to have one argument, which will be a tuple. Finally, if this is used in a module, a header file needs to be included:
+%% -include_lib("stdlib/include/ms_transform.hrl").
+	Ms = ets:fun2ms(fun({Name, Description, Age}) when Age /=16 -> [Description, Name] end), % Return [{{'$1','$2','$3'},[{'/=','$3',16}],[['$2','$1']]}]
+	myio:p(ets:select(TabId,Ms)).
+%% ====================================================================
+%% Records and ETS Tables
+%% ====================================================================
+%% Remember that the default key position in ETS tables is the first element of the tuple. In records, that position is reserved for the record type; 
+%% unless you explicitly state the key position, you will not get the intended behavior.
+-record(capital, {name, country, pop}).
+records_demo() ->
+	ets:new(countries, [named_table, {keypos, #capital.name}]), % specify name as key
+	ets:insert(countries, #capital{name="Budapest", country="Hungary",pop=2400000}),
+	ets:insert(countries, #capital{name="Pretoria", country="South Africa", pop=2400000}),
+	ets:insert(countries, #capital{name="Rome", country="Italy",pop=5500000}),
+	myio:p(ets:lookup(countries, "Pretoria")),
+	myio:p(ets:match(countries, #capital{name='$1',country='$2', _='_'})),
+	myio:p(ets:match_object(countries, #capital{country="Italy", _='_'})),
+	MS = ets:fun2ms(fun(#capital{pop=P, name=N}) when P < 5000000 -> N end),
+	myio:p(ets:select(countries, MS)).
+%% ====================================================================
+%% Visualizing Tables
+%% ====================================================================
+%% The Erlang system comes with a tool for visualizing the current state of ETS and Mnesia tables; tables owned by both the current node and connected nodes are 
+%% shown when the visualizer is launched by calling tv:start().
+
 
 %% Demo
 demo() ->
