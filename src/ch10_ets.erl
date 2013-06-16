@@ -152,10 +152,3 @@ demo() ->
 	deleteByKey(TabId, jacy),  % Delete element
 	myio:p(findByKey(TabId, jacy)),
 	destory(TabId).
-
-
-
-
-
-
-
