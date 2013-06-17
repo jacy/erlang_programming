@@ -15,7 +15,7 @@ start_link() ->
 	%% 4. CallbackModule Is the name of the module in which the specific callback functions are placed.
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
-%% Should return one of the values {ok, LoopData} or {stop, Reason}. If init/1 returns {stop, Reason} the terminate/2 “cleanup” function will not be called.
+%% Should return one of the values {ok, LoopData} or {stop, Reason}. If init/1 returns {stop, Reason} the terminate/2 cleanup function will not be called.
 init([]) -> 
 	{ok, null}.
 
@@ -27,14 +27,14 @@ init([]) ->
 %% gen_server:call(Name, Message)
 %% Name Is either the local registered name of the server or the tuple{global, Name}. It could also be the process identifier of the server.
 %% --------------------------------------------------------------------
-%% Asynchronous Messages ->  {noreply, NewLoopDataï½
+%% Asynchronous Messages ->  {noreply, NewLoopData}
 %% --------------------------------------------------------------------
-%% For asynchronous message requests, you use cast/2. If youâre using a pid, the call will immediately return the atom âokâ, regardless of whether the gen_server 
-%% to which you are sending the message is alive.These semantics are no different from the standard âName ! Messageâ construct,
+%% For asynchronous message requests, you use cast/2. If you are using a pid, the call will immediately return the atom ok, regardless of whether the gen_server 
+%% to which you are sending the message is alive.These semantics are no different from the standard  Name ! Message  construct,
 %% where if the registered process Name does not exist, the calling process terminates.
 %% Upon receiving the message, gen_server will call the callback function handle_cast(Message, LoopData) in the callback module. 
-%% 1ï¼ Message is the argument passed to the cast/2 function, 
-%% 2ï¼ LoopData is the argument originally returned by the init/1 callback function. 
+%% 1 Message is the argument passed to the cast/2 function, 
+%% 2 LoopData is the argument originally returned by the init/1 callback function. 
 %% The handle_cast/1 callback function handles the specifics of the message, and upon finishing, it has to return the tuple {noreply, NewLoopData}. 
 %% In future calls to the server, the NewLoopData value most recently returned will be passed as an argument when a message is sent to the server.
 %% --------------------------------------------------------------------
@@ -60,8 +60,8 @@ init([]) ->
 %% --------------------------------------------------------------------
 %% Handle Other Messages
 %% --------------------------------------------------------------------
-%% The callback function handle_info/2* is called whenever the process receives a message it doesnât recognize. 
-%% These could include ânode downâ messages from nodes you are monitoring, exit signals from processes you are linked to, 
+%% The callback function handle_info/2* is called whenever the process receives a message it doesn't recognize. 
+%% These could include  node down  messages from nodes you are monitoring, exit signals from processes you are linked to, 
 %% or simply messages sent using the 'Pid ! Msg' construct.
 
 handle_cast(stop, LoopData) -> {stop, normal, LoopData}.
