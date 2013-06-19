@@ -24,9 +24,11 @@ listen(ListenSocket, Count) ->
 pull_request(Connection, Count) ->
 	case gen_tcp:recv(Connection, 0, ?THIRTY_SECONDS) of
 		{ok, Binary} -> 
-			io:format("Pull request form pid ~p, count ~p ,with body: ~n ~p ~n",[self(), Count, Binary]),
+			io:format("Pull request from pid ~p, count ~p ,with body: ~n ~p ~n",[self(), Count, Binary]),
 			response(Binary, Connection),
-			close(Connection);
+			close(Connection),
+			pull_request(Connection, Count);
+		{error, closed} -> io:format("Close request for pid ~p, count ~p ~n",[self(), Count]); % Handler if connection is closed.
 		{error,timeout} -> 
 			io:format("Pull Request timeout of count:~p ~n",[Count]),
 			close(Connection)
