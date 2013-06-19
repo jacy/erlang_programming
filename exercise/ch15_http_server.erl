@@ -35,11 +35,14 @@ pull_request(Connection, Count) ->
 response(Binary, Connection) ->
 	LineBreak = "\r\n",
 	StatusLine = "HTTP/1.1 200 OK" ++ LineBreak,
-	RespBody = "Test",
-	RespHeader = lists:concat(["Content-Length: ",string:len(RespBody), LineBreak]),
+	RespBody = "Test<h3>------------Request----------</h3>" ++ to_html_break(Binary),
+	RespHeader = lists:concat(["Content-Length: ",string:len(RespBody), LineBreak, "Content-Type: text/html;charset=UTF-8", LineBreak]),
 	Cookie = "Set-Cookie: JSESSIONID=TODO; expires=Thu, 18-Jun-2015 07:45:30 GMT; path=/;" ++ LineBreak,
 	
 	Resp = lists:concat([StatusLine,RespHeader,Cookie,LineBreak,RespBody,LineBreak]),
 	gen_tcp:send(Connection, Resp).
 
 close(Socket) -> gen_tcp:close(Socket).
+
+to_html_break(Input) -> re:replace(Input, "\r\n", "<br>", [global,{return, list}]).
+	

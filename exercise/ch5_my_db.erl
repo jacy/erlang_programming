@@ -63,7 +63,7 @@ loop() ->
 		{{From, _Ref}, stop} -> 
 			ets:delete(?DBNAME),
 			myio:p("Stop Database"),
-			From ! {Ref, ok}
+			From ! {_Ref, ok}
 	end.
 %% ====================================================================
 %% Internal functions

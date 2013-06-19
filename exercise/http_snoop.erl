@@ -3,8 +3,6 @@
 
 -define(TCP_OPTIONS, [{packet, 0}, {active, false}, {reuseaddr, true}]).
 
-start()-> start(7777).
-
 start(Port) ->
     spawn(?MODULE, listen, [Port]).
 
