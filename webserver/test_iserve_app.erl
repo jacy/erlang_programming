@@ -1,18 +1,14 @@
-%% @author jacy
-%% @doc @todo Add description to test_iserve_app.
-
-
 -module(test_iserve_app).
+-export([do_get/2]).
+-include("iserve.hrl").
 
-%% ====================================================================
-%% API functions
-%% ====================================================================
--export([]).
-
-
-
-%% ====================================================================
-%% Internal functions
-%% ====================================================================
-
-
+do_get(#req{} = _Req, _Args) ->
+    {200, [], <<"<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
+<html>
+<head>
+  <title>Welcome to iserve</title>
+</head>
+<body>
+  Hello
+</body>
+</html>">>}.
