@@ -1,80 +1,78 @@
 -module(gfsm).
-
 -behaviour(gen_fsm).
-
-%% API
--export([start_link/0]).
-
-%% gen_fsm callbacks
--export([init/1, state_name/2, state_name/3, handle_event/3,handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
-
+-export([start_link/0,authorize/2,deposit/1,cancel/0]).% API
+-export([init/1, handle_event/3,handle_sync_event/4, handle_info/3, terminate/3, code_change/4,
+		 authorized/2,authorized/3, unauthorized/3, thank_you/2,thank_you/3]). % gen_fsm callbacks
 -define(SERVER, ?MODULE).
 
+%% A gen_fsm starts in a state, and any calls/casts made to it are received by a special callback method which is 
+%% the named the same as the state the gen_fsm module is in. Based on an action, the module can change states. 
+%% 1. init/1 - Initializers the server. Almost identical to gen_server.
+%% 2. StateName/2 - In this case, StateName actually will be replaced with a state name. This is called when a message is sent to the server;
+%% 	  an action occurs on the finite state machine. This is an asynchronous callback.
+%% 3. handle_event/3 - Similar to StateName/2, except that this is sent no matter what state you’re in, when the client calls gen_fsm:send_all_state_event.
+%% 	  Again, this is asynchronous.
+%% 4. StateName/3 - Equivalent to StateName/2 except this is the synchronous version. The client waits for a response from the server before continuing.
+%% 5. handle_sync_event/4 - Equivalent to handle_event/3 except this is the synchronous version.
+%% 6. handle_info/3 - Equivalent to gen_server’s handle_info. This receives all messages which weren’t sending using a standard gen_fsm command. 
+%% 	  This can include timeout messages, process exit messages, or any messages sent manually with the “!” symbol to the server process.
+%% 7. terminate/3 - Called when the server is terminating so you can clean up any resources.
+%% 8. code_change/4 - Called when a real-time system upgrade of the server is occuring.
 %%====================================================================
 %% API
 %%====================================================================
-%%--------------------------------------------------------------------
-%% Function: start_link() -> {ok,Pid} | ignore | {error,Error}
-%% Description:Creates a gen_fsm process which calls Module:init/1 to
-%% initialize. To ensure a synchronized start-up procedure, this function
-%% does not return until Module:init/1 has returned.
-%%--------------------------------------------------------------------
 start_link() ->
   gen_fsm:start_link({local, ?SERVER}, ?MODULE, [], []).
 
+%% The sync_send_event method is equivalent to the call method of gen_server. 
+%% It sends the message to the current state of the server. 
 authorize(Name, PIN) ->
-%% 	The sync_send_event method is equivalent to the call method of gen_server. It sends the message, the second argument, 
-%% 	to the current state of the server represented with the first argument. 
 	gen_fsm:sync_send_event(?SERVER, {authorize,Name, PIN}).
 
+deposit(Amount) ->
+  gen_fsm:send_event(?SERVER, {deposit, Amount}).
+
+%%  Cancels the ATM transaction no matter what state.
+cancel() ->
+  gen_fsm:send_all_state_event(?SERVER, cancel).
+
 %%====================================================================
-%% gen_fsm callbacks
+%% Callbacks
 %%====================================================================
-%%--------------------------------------------------------------------
-%% Function: init(Args) -> {ok, StateName, State} |
-%%                         {ok, StateName, State, Timeout} |
-%%                         ignore                          |
-%%                         {stop, StopReason}
-%% Description:Whenever a gen_fsm is started using gen_fsm:start/[3,4] or
-%% gen_fsm:start_link/3,4, this function is called by the new process to
-%% initialize.
-%%--------------------------------------------------------------------
 init([]) ->
   {ok, unauthorized, nobody}. % current state is unauthorized
 
-%%--------------------------------------------------------------------
-%% Function:
-%% state_name(Event, State) -> {next_state, NextStateName, NextState}|
-%%                             {next_state, NextStateName,
-%%                                NextState, Timeout} |
-%%                             {stop, Reason, NewState}
-%% Description:There should be one instance of this function for each possible
-%% state name. Whenever a gen_fsm receives an event sent using
-%% gen_fsm:send_event/2, the instance of this function with the same name as
-%% the current state name StateName is called to handle the event. It is also
-%% called if a timeout occurs.
-%%--------------------------------------------------------------------
-state_name(_Event, State) ->
-  {next_state, state_name, State}.
+handle_info(_Info, StateName, State) ->
+  {next_state, StateName, State}.
+
+terminate(_Reason, _StateName, _State) ->
+  ok.
+
+code_change(_OldVsn, StateName, State, _Extra) ->
+  {ok, StateName, State}.
 
 %%--------------------------------------------------------------------
-%% Function:
-%% state_name(Event, From, State) -> {next_state, NextStateName, NextState}            |
-%%                                   {next_state, NextStateName, NextState, Timeout}   |
-%%                                   {reply, Reply, NextStateName, NextState}          |
-%%                                   {reply, Reply, NextStateName, NextState, Timeout} |
-%%                                   {stop, Reason, NewState}                          |
-%%                                   {stop, Reason, Reply, NewState}
-%% Description: There should be one instance of this function for each
-%% possible state name. Whenever a gen_fsm receives an event sent using
-%% gen_fsm:sync_send_event/2,3, the instance of this function with the same
-%% name as the current state name StateName is called to handle the event.
+%% Asynchronize State
 %%--------------------------------------------------------------------
-state_name(_Event, _From, State) ->
-  Reply = ok,
-  {reply, Reply, state_name, State}.
+authorized({deposit, Amount}, State) -> 
+	eb_server:deposit(State, Amount),
+  	{next_state, thank_you, State, 5000};
+authorized(_Event, State) ->
+  {next_state, authorized, State}.
 
+thank_you(timeout, _State) ->
+  {next_state, unauthorized, nobody};
+thank_you(_Event, _State) ->
+  {next_state, unauthorized, nobody}.
 
+handle_event(cancel, _StateName, _State) ->
+  {next_state, unauthorized, nobody};
+handle_event(_Event, StateName, State) ->
+  {next_state, StateName, State}.
+
+%%--------------------------------------------------------------------
+%% Synchronize State
+%%--------------------------------------------------------------------
 unauthorized({authorize, Name, Pin}, _From, State) ->
   case eb_server:authorize(Name, Pin) of
     ok ->
@@ -86,65 +84,19 @@ unauthorized(_Event, _From, State) ->
   Reply = {error, invalid_message},
   {reply, Reply, unauthorized, State}.
 
-%%--------------------------------------------------------------------
-%% Function:
-%% handle_event(Event, StateName, State) -> {next_state, NextStateName,NextState}          |
-%%                                          {next_state, NextStateName,NextState, Timeout} |
-%%                                          {stop, Reason, NewState}
-%% Description: Whenever a gen_fsm receives an event sent using
-%% gen_fsm:send_all_state_event/2, this function is called to handle
-%% the event.
-%%--------------------------------------------------------------------
-handle_event(_Event, StateName, State) ->
-  {next_state, StateName, State}.
+authorized({withdraw, Amount}, _From, State) ->
+  case eb_server:withdraw(State, Amount) of
+    {ok, Balance} ->
+      {reply, {ok, Balance}, thank_you, State, 5000};
+    {error, Reason} ->
+      {reply, {error, Reason}, authorized, State}
+  end;
+authorized(_Msg, _From, State) ->
+  {reply, {error, invalid_message}, authorized, State}.
 
-%%--------------------------------------------------------------------
-%% Function:
-%% handle_sync_event(Event, From, StateName,
-%%                   State) -> {next_state, NextStateName, NextState} |
-%%                             {next_state, NextStateName, NextState, Timeout} |
-%%                             {reply, Reply, NextStateName, NextState}|
-%%                             {reply, Reply, NextStateName, NextState, Timeout} |
-%%                             {stop, Reason, NewState} |
-%%                             {stop, Reason, Reply, NewState}
-%% Description: Whenever a gen_fsm receives an event sent using
-%% gen_fsm:sync_send_all_state_event/2,3, this function is called to handle
-%% the event.
-%%--------------------------------------------------------------------
+thank_you(_Msg, _From, State) ->
+  {reply, {error, invalid_message}, unauthorized, State}.
+
 handle_sync_event(_Event, _From, StateName, State) ->
   Reply = ok,
   {reply, Reply, StateName, State}.
-
-%%--------------------------------------------------------------------
-%% Function:
-%% handle_info(Info,StateName,State)-> {next_state, NextStateName, NextState}|
-%%                                     {next_state, NextStateName, NextState,Timeout} |
-%%                                     {stop, Reason, NewState}
-%% Description: This function is called by a gen_fsm when it receives any
-%% other message than a synchronous or asynchronous event
-%% (or a system message).
-%%--------------------------------------------------------------------
-handle_info(_Info, StateName, State) ->
-  {next_state, StateName, State}.
-
-%%--------------------------------------------------------------------
-%% Function: terminate(Reason, StateName, State) -> void()
-%% Description:This function is called by a gen_fsm when it is about
-%% to terminate. It should be the opposite of Module:init/1 and do any
-%% necessary cleaning up. When it returns, the gen_fsm terminates with
-%% Reason. The return value is ignored.
-%%--------------------------------------------------------------------
-terminate(_Reason, _StateName, _State) ->
-  ok.
-
-%%--------------------------------------------------------------------
-%% Function:
-%% code_change(OldVsn, StateName, State, Extra) -> {ok, StateName, NewState}
-%% Description: Convert process state when code is changed
-%%--------------------------------------------------------------------
-code_change(_OldVsn, StateName, State, _Extra) ->
-  {ok, StateName, State}.
-
-%%--------------------------------------------------------------------
-%%% Internal functions
-%%--------------------------------------------------------------------

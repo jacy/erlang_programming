@@ -74,7 +74,9 @@ authorize(Name, PIN) ->
 %% Description: Initiates the server
 %%--------------------------------------------------------------------
 init([]) ->
-  {ok, dict:new()}.
+	eb_event_manager:start_link(), % start event manager
+	eb_event_manager:add_handler(eb_withdrawal_handler), % add event handler
+ 	{ok, dict:new()}.
 
 %%--------------------------------------------------------------------
 %% Function: %% handle_call(Request, From, State) -> {reply, Reply, State} |
@@ -111,6 +113,7 @@ handle_call({withdraw, Name, Amount}, _From, State) ->
     {ok, {PIN, Value}} ->
       NewBalance = Value - Amount,
       NewState = dict:store(Name, {PIN, NewBalance}, State),
+      eb_event_manager:notify({withdraw, Name, Amount, NewBalance}), % Send notification
       {reply, {ok, NewBalance}, NewState};
     error ->
       {reply, {error, account_does_not_exist}, State}
