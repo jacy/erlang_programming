@@ -57,6 +57,7 @@ bifs() ->
 %% <<5:4,5:4>> returns <<"U">>. The integer 5 represented in four bits is equivalent to 0101. In our binary, we put two of them together, 01010101, which is the
 %% integer 85, denoting the ASCII value of U. Put 85 in a list, and you get back the string  notation containing the capital letter U.
 %%  Writing <<"Hello">> is the same as writing <<$H,$e,$l,$l,$o>>, or its ASCII equivalent, <<72,101,108,108,111>>.
+%%  <<"ABC">> == <<"A","B","C">> -> true
 
 %% ====================================================================
 %% Pattern-Matching Bits

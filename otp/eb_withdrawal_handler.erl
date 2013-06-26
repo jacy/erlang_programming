@@ -3,6 +3,7 @@
          handle_info/2, terminate/2, code_change/3]).% callback
 -export([change_threshold/1]).% API
 -define(SERVER, ?MODULE).
+-behavior(gen_event).
 %%====================================================================
 %% API
 %%====================================================================

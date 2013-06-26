@@ -1,0 +1,11 @@
+eclipse.preferences.version=1
+encoding//otp/eb_atm.erl=UTF-8
+encoding//otp/eb_server.erl=UTF-8
+encoding//otp/eb_sup.erl=UTF-8
+encoding//src/ch10_ets.erl=UTF-8
+encoding//src/ch10_usr_db.erl=UTF-8
+encoding//src/ch15_tcp.erl=UTF-8
+encoding//src/ch15_udp.erl=UTF-8
+encoding//src/ch9_binaries.erl=UTF-8
+encoding//src/gsp.erl=UTF-8
+encoding//webserver/test_iserve_app.erl=UTF-8
